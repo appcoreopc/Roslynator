@@ -774,6 +774,46 @@ struct SqlBoolean
 }
 ");
         }
+
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.UseConditionalAccess)]
+        public async Task TestNoDiagnostic_PreprocessorDirective()
+        {
+            await VerifyNoDiagnosticAsync(@"
+class C
+{
+    void M(string s)
+    {
+        if (s != null
+
+#if X
+                && s != s
+#endif
+                && !s.Equals(s))
+        {
+        }
     }
 }
+");
+        }
 
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.UseConditionalAccess)]
+        public async Task TestNoDiagnostic_PointerType()
+        {
+            await VerifyNoDiagnosticAsync(@"
+unsafe class C
+{
+    public int* P { get; }
+
+    void M()
+    {
+        var c = new C();
+
+        if (c != null && c.P != null)
+        {
+        }
+    }
+}
+");
+        }
+    }
+}

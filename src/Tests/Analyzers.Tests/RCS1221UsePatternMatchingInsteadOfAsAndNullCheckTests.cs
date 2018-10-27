@@ -81,6 +81,43 @@ class C
         }
 
         [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.UsePatternMatchingInsteadOfAsAndNullCheck)]
+        public async Task Test_EqualsToNull_ReturnVariable()
+        {
+            await VerifyDiagnosticAndFixAsync(@"
+class C
+{
+    string M()
+    {
+        object x = null;
+
+        [|var s = x as string;|]
+        if (s == null)
+        {
+            return s;
+        }
+
+        return s;
+    }
+}
+", @"
+class C
+{
+    string M()
+    {
+        object x = null;
+
+        if (!(x is string s))
+        {
+            return null;
+        }
+
+        return s;
+    }
+}
+");
+        }
+
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.UsePatternMatchingInsteadOfAsAndNullCheck)]
         public async Task Test_IsNull()
         {
             await VerifyDiagnosticAndFixAsync(@"
@@ -253,6 +290,26 @@ class C
         if (s == null)
         {
             return;
+        }
+    }
+}
+");
+        }
+
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.UsePatternMatchingInsteadOfAsAndNullCheck)]
+        public async Task TestNoDiagnostic_NullableType()
+        {
+            await VerifyNoDiagnosticAsync(@"
+class C
+{
+    void M()
+    {
+        object x = null;
+
+        var y = x as int?;
+
+        if (y == null)
+        {
         }
     }
 }

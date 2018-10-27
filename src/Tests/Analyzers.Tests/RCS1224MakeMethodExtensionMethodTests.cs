@@ -230,5 +230,38 @@ public static class FooExtensions
 }
 ");
         }
+
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.MakeMethodExtensionMethod)]
+        public async Task TestNoDiagnostic_ParameterHasDefaultValue()
+        {
+            await VerifyNoDiagnosticAsync(@"
+public static class FooExtensions
+{
+        public static void M(object p = null) { }
+}
+");
+        }
+
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.MakeMethodExtensionMethod)]
+        public async Task TestNoDiagnostic_PointerType()
+        {
+            await VerifyNoDiagnosticAsync(@"
+public static class FooExtensions
+{
+        public static unsafe void M(int* p) { }
+}
+");
+        }
+
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.MakeMethodExtensionMethod)]
+        public async Task TestNoDiagnostic_Params()
+        {
+            await VerifyNoDiagnosticAsync(@"
+public static class FooExtensions
+{
+        public static void M(params object[] p) { }
+}
+");
+        }
     }
 }

@@ -41,7 +41,7 @@ namespace Roslynator.CSharp.Refactorings.InlineDefinition
 
             (ExpressionSyntax expression, SyntaxList<StatementSyntax> statements) = GetExpressionOrStatements(declaration);
 
-            SyntaxNode nodeIncludingConditionalAccess = node.WalkUp(SyntaxKind.ConditionalAccessExpression);
+            SyntaxNode nodeIncludingConditionalAccess = node.WalkUp(f => f.IsKind(SyntaxKind.ConditionalAccessExpression));
 
             if (expression != null
                 || (statements.Any() && nodeIncludingConditionalAccess.IsParentKind(SyntaxKind.ExpressionStatement)))
@@ -53,9 +53,18 @@ namespace Roslynator.CSharp.Refactorings.InlineDefinition
 
                 INamedTypeSymbol enclosingType = semanticModel.GetEnclosingNamedType(node.SpanStart, context.CancellationToken);
 
-                SemanticModel declarationSemanticModel = (node.SyntaxTree == declaration.SyntaxTree)
-                    ? semanticModel
-                    : await context.Solution.GetDocument(declaration.SyntaxTree).GetSemanticModelAsync(context.CancellationToken).ConfigureAwait(false);
+                SemanticModel declarationSemanticModel = semanticModel;
+
+                if (node.SyntaxTree != declaration.SyntaxTree)
+                {
+                    Document document = context.Solution.GetDocument(declaration.SyntaxTree);
+
+                    // https://github.com/dotnet/roslyn/issues/5260
+                    if (document == null)
+                        return;
+
+                    declarationSemanticModel = await document.GetSemanticModelAsync(context.CancellationToken).ConfigureAwait(false);
+                }
 
                 InlineRefactoring<TNode, TDeclaration, TSymbol> refactoring = CreateRefactoring(context.Document, nodeIncludingConditionalAccess, enclosingType, symbol, declaration, parameterInfos, semanticModel, declarationSemanticModel, context.CancellationToken);
 

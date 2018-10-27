@@ -10,6 +10,7 @@ using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeFixes;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Formatting;
 using Roslynator.CodeFixes;
 using Roslynator.CSharp.SyntaxRewriters;
 using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
@@ -21,6 +22,10 @@ namespace Roslynator.CSharp.CodeFixes
     [Shared]
     public class UseAsyncAwaitCodeFixProvider : BaseCodeFixProvider
     {
+        private static readonly SyntaxAnnotation[] _asyncAwaitAnnotation = new SyntaxAnnotation[] { new SyntaxAnnotation() };
+
+        private static readonly SyntaxAnnotation[] _asyncAwaitAnnotationAndFormatterAnnotation = new SyntaxAnnotation[] { _asyncAwaitAnnotation[0], Formatter.Annotation };
+
         public sealed override ImmutableArray<string> FixableDiagnosticIds
         {
             get { return ImmutableArray.Create(DiagnosticIdentifiers.UseAsyncAwait); }
@@ -101,7 +106,7 @@ namespace Roslynator.CSharp.CodeFixes
 
                         SimpleLambdaExpressionSyntax newNode = lambda
                             .WithBody(newBody)
-                            .WithAsyncKeyword(AsyncKeyword());
+                            .WithAsyncKeyword(Token(SyntaxKind.AsyncKeyword));
 
                         return await document.ReplaceNodeAsync(lambda, newNode, cancellationToken).ConfigureAwait(false);
                     }
@@ -117,7 +122,7 @@ namespace Roslynator.CSharp.CodeFixes
 
                         ParenthesizedLambdaExpressionSyntax newNode = lambda
                             .WithBody(newBody)
-                            .WithAsyncKeyword(AsyncKeyword());
+                            .WithAsyncKeyword(Token(SyntaxKind.AsyncKeyword));
 
                         return await document.ReplaceNodeAsync(lambda, newNode, cancellationToken).ConfigureAwait(false);
                     }
@@ -133,7 +138,7 @@ namespace Roslynator.CSharp.CodeFixes
 
                         AnonymousMethodExpressionSyntax newNode = anonymousMethod
                             .WithBody(newBody)
-                            .WithAsyncKeyword(AsyncKeyword());
+                            .WithAsyncKeyword(Token(SyntaxKind.AsyncKeyword));
 
                         return await document.ReplaceNodeAsync(anonymousMethod, newNode, cancellationToken).ConfigureAwait(false);
                     }
@@ -144,7 +149,7 @@ namespace Roslynator.CSharp.CodeFixes
 
         private class UseAsyncAwaitRewriter : SkipFunctionRewriter
         {
-            public UseAsyncAwaitRewriter(bool keepReturnStatement)
+            private UseAsyncAwaitRewriter(bool keepReturnStatement)
             {
                 KeepReturnStatement = keepReturnStatement;
             }
@@ -174,15 +179,60 @@ namespace Roslynator.CSharp.CodeFixes
                 {
                     if (KeepReturnStatement)
                     {
-                        return node.WithExpression(AwaitExpression(expression.WithoutTrivia()).WithTriviaFrom(expression));
+                        return node.WithExpression(AwaitExpression(expression.WithoutTrivia().Parenthesize()).WithTriviaFrom(expression));
                     }
                     else
                     {
-                        return ExpressionStatement(AwaitExpression(expression.WithoutTrivia()).WithTriviaFrom(expression)).WithTriviaFrom(node);
+                        return ExpressionStatement(AwaitExpression(expression.WithoutTrivia().Parenthesize()).WithTriviaFrom(expression))
+                                .WithLeadingTrivia(node.GetLeadingTrivia())
+                                .WithAdditionalAnnotations(_asyncAwaitAnnotationAndFormatterAnnotation);
                     }
                 }
 
                 return base.VisitReturnStatement(node);
+            }
+
+            public override SyntaxNode VisitBlock(BlockSyntax node)
+            {
+                node = (BlockSyntax)base.VisitBlock(node);
+
+                SyntaxList<StatementSyntax> statements = node.Statements;
+
+                statements = RewriteStatements(statements);
+
+                return node.WithStatements(statements);
+            }
+
+            public override SyntaxNode VisitSwitchSection(SwitchSectionSyntax node)
+            {
+                node = (SwitchSectionSyntax)base.VisitSwitchSection(node);
+
+                SyntaxList<StatementSyntax> statements = node.Statements;
+
+                statements = RewriteStatements(statements);
+
+                return node.WithStatements(statements);
+            }
+
+            private static SyntaxList<StatementSyntax> RewriteStatements(SyntaxList<StatementSyntax> statements)
+            {
+                for (int i = statements.Count - 1; i >= 0; i--)
+                {
+                    StatementSyntax statement = statements[i];
+
+                    if (statement.HasAnnotation(_asyncAwaitAnnotation[0]))
+                    {
+                        statements = statements.Replace(
+                            statement,
+                            statement.WithoutAnnotations(_asyncAwaitAnnotation).WithTrailingTrivia(NewLine()));
+
+                        statements = statements.Insert(
+                            i + 1,
+                            ReturnStatement().WithTrailingTrivia(statement.GetTrailingTrivia()).WithFormatterAnnotation());
+                    }
+                }
+
+                return statements;
             }
         }
     }

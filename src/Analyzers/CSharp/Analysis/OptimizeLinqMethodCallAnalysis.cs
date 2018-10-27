@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -90,8 +91,17 @@ namespace Roslynator.CSharp.Analysis
 
                         if (typeSymbol != null)
                         {
-                            if ((typeSymbol.Kind == SymbolKind.ArrayType && ((IArrayTypeSymbol)typeSymbol).Rank == 1)
-                                || typeSymbol.OriginalDefinition.HasMetadataName(MetadataNames.System_Collections_Generic_List_T))
+                            if (typeSymbol.Kind == SymbolKind.ArrayType)
+                            {
+                                if (((IArrayTypeSymbol)typeSymbol).Rank == 1
+                                    && !invocationInfo.Expression.IsKind(SyntaxKind.MemberBindingExpression)
+                                    && context.SemanticModel.Compilation.GetTypeByMetadataName("System.Array").GetMembers("Find").Any())
+                                {
+                                    Report(context, invocationInfo.Name);
+                                    return;
+                                }
+                            }
+                            else if (typeSymbol.OriginalDefinition.HasMetadataName(MetadataNames.System_Collections_Generic_List_T))
                             {
                                 Report(context, invocationInfo.Name);
                                 return;
@@ -383,7 +393,9 @@ namespace Roslynator.CSharp.Analysis
 
             if (propertyName != null)
             {
-                ReportNameWithArgumentList(context, invocationInfo, property: new KeyValuePair<string, string>("PropertyName", propertyName), messageArgs: propertyName);
+                if (CanBeReplacedWithMemberAccessExpression(invocationExpression))
+                    ReportNameWithArgumentList(context, invocationInfo, property: new KeyValuePair<string, string>("PropertyName", propertyName), messageArgs: propertyName);
+
                 return;
             }
 
@@ -442,6 +454,26 @@ namespace Roslynator.CSharp.Analysis
 
                         break;
                     }
+            }
+
+            bool CanBeReplacedWithMemberAccessExpression(ExpressionSyntax e)
+            {
+                SyntaxNode p = CSharpUtility.GetTopmostExpressionInCallChain(e).WalkUpParentheses().Parent;
+
+                switch (p.Kind())
+                {
+                    case SyntaxKind.ExpressionStatement:
+                        {
+                            return false;
+                        }
+                    case SyntaxKind.SimpleLambdaExpression:
+                    case SyntaxKind.ParenthesizedLambdaExpression:
+                        {
+                            return semanticModel.GetMethodSymbol((LambdaExpressionSyntax)p, cancellationToken)?.ReturnType.IsVoid() == false;
+                        }
+                }
+
+                return true;
             }
         }
 

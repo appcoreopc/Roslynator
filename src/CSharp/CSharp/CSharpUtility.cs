@@ -346,7 +346,7 @@ namespace Roslynator.CSharp
             }
 
             return semanticModel.GetTypeInfo(expression, cancellationToken)
-                .ConvertedType?
+                .Type?
                 .SpecialType == SpecialType.System_String;
         }
 
@@ -626,6 +626,16 @@ namespace Roslynator.CSharp
             }
 
             return false;
+        }
+
+        public static ExpressionSyntax GetTopmostExpressionInCallChain(ExpressionSyntax expression)
+        {
+            return (ExpressionSyntax)expression.WalkUp(f => f.IsKind(
+                SyntaxKind.ConditionalAccessExpression,
+                SyntaxKind.SimpleMemberAccessExpression,
+                SyntaxKind.ElementAccessExpression,
+                SyntaxKind.MemberBindingExpression,
+                SyntaxKind.InvocationExpression));
         }
     }
 }

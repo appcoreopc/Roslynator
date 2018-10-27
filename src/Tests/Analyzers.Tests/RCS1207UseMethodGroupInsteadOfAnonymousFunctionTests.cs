@@ -302,5 +302,46 @@ class C
 }
 ");
         }
+
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.UseMethodGroupInsteadOfAnonymousFunction)]
+        public async Task TestNoDiagnostic_DelegateInvoke()
+        {
+            await VerifyNoDiagnosticAsync(@"
+using System;
+
+class C
+{
+    delegate bool D(string s);
+
+    void M(Func<string, bool> func)
+    {
+        D d = null;
+
+        M(f => d(f));
+    }
+}
+");
+        }
+
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.UseMethodGroupInsteadOfAnonymousFunction)]
+        public async Task TestNoDiagnostic_InParameter()
+        {
+            await VerifyNoDiagnosticAsync(@"
+using System;
+
+class C
+{
+    void M(Func<string, string> func)
+    {
+        M(f => M2(f));
+    }
+
+    string M2(in string p)
+    {
+        return p;
+    }
+}
+");
+        }
     }
 }

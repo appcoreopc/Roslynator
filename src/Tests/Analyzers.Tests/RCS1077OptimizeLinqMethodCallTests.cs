@@ -863,6 +863,34 @@ class C
         }
 
         [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.OptimizeLinqMethodCall)]
+        public async Task TestNoDiagnostic_OptimizeCountCall_ExpressionCannotBeMemberAccessExpression()
+        {
+            await VerifyNoDiagnosticAsync(@"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+class C
+{
+    void M(Action action)
+    {
+        var items = new List<object>();
+
+        items.Count();
+
+        M(() => items.Count());
+
+        M(_ => items.Count());
+    }
+
+    void M(Action<object> action)
+    {
+    }
+}
+");
+        }
+
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.OptimizeLinqMethodCall)]
         public async Task TestNoDiagnostic_CallAnyInsteadOfCount()
         {
             await VerifyNoDiagnosticAsync(@"
@@ -955,6 +983,46 @@ class C
         x = ((ImmutableArray<object>)x).ToImmutableArray().First();
         x = ((string)x).ToString().First();
     }
+}
+");
+        }
+
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.OptimizeLinqMethodCall)]
+        public async Task TestNoDiagnostic_UseElementAccess_ExpressionStatement()
+        {
+            await VerifyNoDiagnosticAsync(@"
+using System.Linq;
+using System.Collections.Generic;
+
+class C
+{
+    void M()
+    {
+        object x = null;
+
+        ((List<object>)x).First();
+        ((List<object>)x).ElementAt(1);
+    }
+}
+");
+        }
+
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.OptimizeLinqMethodCall)]
+        public async Task TestNoDiagnostic_CallFindInsteadOfFirstOrDefault_Array_ConditionalAccess()
+        {
+            await VerifyNoDiagnosticAsync(@"
+using System.Linq;
+
+class C
+{
+    void M()
+    {
+        var x = new C();
+
+        object item = x?.Items.FirstOrDefault(f => f != null);
+    }
+
+    object[] Items { get; }
 }
 ");
         }

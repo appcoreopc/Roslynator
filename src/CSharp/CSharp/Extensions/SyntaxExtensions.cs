@@ -426,6 +426,112 @@ namespace Roslynator.CSharp
         }
         #endregion DestructorDeclarationSyntax
 
+        #region DirectiveTriviaSyntax
+        //TODO: make public
+        internal static DirectiveTriviaSyntax GetNextRelatedDirective(this DirectiveTriviaSyntax directiveTrivia)
+        {
+            DirectiveTriviaSyntax d = directiveTrivia;
+
+            switch (d.Kind())
+            {
+                case SyntaxKind.IfDirectiveTrivia:
+                case SyntaxKind.ElifDirectiveTrivia:
+                    {
+                        while (true)
+                        {
+                            d = d.GetNextPossiblyRelatedDirective();
+
+                            if (d == null)
+                                break;
+
+                            if (d.IsKind(
+                                SyntaxKind.ElifDirectiveTrivia,
+                                SyntaxKind.ElseDirectiveTrivia,
+                                SyntaxKind.EndIfDirectiveTrivia))
+                            {
+                                return d;
+                            }
+                        }
+
+                        break;
+                    }
+                case SyntaxKind.ElseDirectiveTrivia:
+                    {
+                        while (true)
+                        {
+                            d = d.GetNextPossiblyRelatedDirective();
+
+                            if (d == null)
+                                break;
+
+                            if (d.Kind() == SyntaxKind.EndIfDirectiveTrivia)
+                                return d;
+                        }
+
+                        break;
+                    }
+                case SyntaxKind.RegionDirectiveTrivia:
+                    {
+                        while (true)
+                        {
+                            d = d.GetNextPossiblyRelatedDirective();
+
+                            if (d == null)
+                                break;
+
+                            if (d.Kind() == SyntaxKind.EndRegionDirectiveTrivia)
+                                return d;
+                        }
+
+                        break;
+                    }
+            }
+
+            return null;
+        }
+
+        private static DirectiveTriviaSyntax GetNextPossiblyRelatedDirective(this DirectiveTriviaSyntax directiveTrivia)
+        {
+            DirectiveTriviaSyntax d = directiveTrivia;
+
+            while (d != null)
+            {
+                d = d.GetNextDirective();
+
+                if (d != null)
+                {
+                    switch (d.Kind())
+                    {
+                        case SyntaxKind.IfDirectiveTrivia:
+                            {
+                                do
+                                {
+                                    d = d.GetNextRelatedDirective();
+                                }
+                                while (d != null && d.Kind() != SyntaxKind.EndIfDirectiveTrivia);
+
+                                continue;
+                            }
+                        case SyntaxKind.RegionDirectiveTrivia:
+                            {
+                                do
+                                {
+                                    d = d.GetNextRelatedDirective();
+                                }
+                                while (d != null && d.Kind() != SyntaxKind.EndRegionDirectiveTrivia);
+
+                                continue;
+                            }
+                    }
+                }
+
+                return d;
+            }
+
+            return null;
+        }
+        #endregion DirectiveTriviaSyntax
+
         #region DocumentationCommentTriviaSyntax
         internal static XmlElementSyntax SummaryElement(this DocumentationCommentTriviaSyntax documentationComment)
         {
@@ -2709,7 +2815,7 @@ namespace Roslynator.CSharp
             if (predicate == null)
                 throw new ArgumentNullException(nameof(predicate));
 
-            SyntaxNode parent = GetParent(node, ascendOutOfTrivia);
+            SyntaxNode parent = node.GetParent(ascendOutOfTrivia);
 
             if (parent != null)
             {
@@ -2792,24 +2898,10 @@ namespace Roslynator.CSharp
                 if (predicate(node))
                     return node;
 
-                node = GetParent(node, ascendOutOfTrivia);
+                node = node.GetParent(ascendOutOfTrivia);
             }
 
             return null;
-        }
-
-        internal static SyntaxNode GetParent(this SyntaxNode node, bool ascendOutOfTrivia)
-        {
-            SyntaxNode parent = node.Parent;
-
-            if (parent == null
-                && ascendOutOfTrivia
-                && (node is IStructuredTriviaSyntax structuredTrivia))
-            {
-                parent = structuredTrivia.ParentTrivia.Token.Parent;
-            }
-
-            return parent;
         }
 
         internal static TRoot RemoveNode<TRoot>(this TRoot root, SyntaxNode node) where TRoot : SyntaxNode
@@ -2934,39 +3026,35 @@ namespace Roslynator.CSharp
         {
             for (SyntaxNode current = node; current != null; current = current.Parent)
             {
-                if (CSharpFacts.IsLambdaExpression(current.Kind())
-                    && semanticModel
-                        .GetTypeInfo(current, cancellationToken)
-                        .ConvertedType?
-                        .OriginalDefinition
-                        .HasMetadataName(MetadataNames.System_Linq_Expressions_Expression_T) == true)
+                switch (current.Kind())
                 {
-                    return true;
-                }
-            }
+                    case SyntaxKind.SimpleLambdaExpression:
+                    case SyntaxKind.ParenthesizedLambdaExpression:
+                        {
+                            if (semanticModel
+                                .GetTypeInfo(current, cancellationToken)
+                                .ConvertedType?
+                                .OriginalDefinition
+                                .HasMetadataName(MetadataNames.System_Linq_Expressions_Expression_T) == true)
+                            {
+                                return true;
+                            }
 
-            return false;
-        }
+                            break;
+                        }
+                    case SyntaxKind.QueryExpression:
+                        {
+                            if (semanticModel
+                                .GetTypeInfo(current, cancellationToken)
+                                .ConvertedType?
+                                .OriginalDefinition
+                                .HasMetadataName(MetadataNames.System_Linq_IQueryable_T) == true)
+                            {
+                                return true;
+                            }
 
-        internal static bool IsInExpressionTree(
-            this SyntaxNode node,
-            INamedTypeSymbol expressionType,
-            SemanticModel semanticModel,
-            CancellationToken cancellationToken = default(CancellationToken))
-        {
-            if (expressionType == null)
-                return false;
-
-            for (SyntaxNode current = node; current != null; current = current.Parent)
-            {
-                if (CSharpFacts.IsLambdaExpression(current.Kind())
-                    && semanticModel
-                        .GetTypeInfo(current, cancellationToken)
-                        .ConvertedType?
-                        .OriginalDefinition
-                        .Equals(expressionType) == true)
-                {
-                    return true;
+                            break;
+                        }
                 }
             }
 
@@ -2984,7 +3072,7 @@ namespace Roslynator.CSharp
                 int lineStartIndex = span.Start - tree.GetLineSpan(span, cancellationToken).StartLinePosition.Character;
 
                 while (!node.FullSpan.Contains(lineStartIndex))
-                    node = GetParent(node, ascendOutOfTrivia: true);
+                    node = node.GetParent(ascendOutOfTrivia: true);
 
                 if (node.IsKind(SyntaxKind.SingleLineDocumentationCommentTrivia))
                 {
@@ -3025,12 +3113,51 @@ namespace Roslynator.CSharp
             return IncreaseIndentation(trivia);
         }
 
-        internal static SyntaxNode WalkUp(this SyntaxNode node, SyntaxKind kind)
+        //TODO: make public
+        internal static bool ContainsUnbalancedIfElseDirectives(this SyntaxNode node)
         {
-            while (node.Parent?.Kind() == kind)
-                node = node.Parent;
+            if (node.ContainsDirectives)
+            {
+                DirectiveTriviaSyntax first = node.GetFirstDirective(f => f.IsKind(
+                    SyntaxKind.IfDirectiveTrivia,
+                    SyntaxKind.ElseDirectiveTrivia,
+                    SyntaxKind.ElifDirectiveTrivia,
+                    SyntaxKind.EndIfDirectiveTrivia));
 
-            return node;
+                if (first != null)
+                {
+                    if (!first.IsKind(SyntaxKind.IfDirectiveTrivia))
+                        return true;
+
+                    DirectiveTriviaSyntax last = node.GetLastDirective(f => f.IsKind(
+                        SyntaxKind.IfDirectiveTrivia,
+                        SyntaxKind.ElseDirectiveTrivia,
+                        SyntaxKind.ElifDirectiveTrivia,
+                        SyntaxKind.EndIfDirectiveTrivia));
+
+                    if (last == first)
+                        return true;
+
+                    if (!last.IsKind(SyntaxKind.EndIfDirectiveTrivia))
+                        return true;
+
+                    DirectiveTriviaSyntax d = first;
+
+                    do
+                    {
+                        d = d.GetNextRelatedDirective();
+
+                        if (d == null)
+                            return true;
+
+                        if (!d.FullSpan.OverlapsWith(node.FullSpan))
+                            return true;
+                    }
+                    while (d != last);
+                }
+            }
+
+            return false;
         }
         #endregion SyntaxNode
 

@@ -1516,27 +1516,27 @@ namespace Roslynator.CSharp
             customTags:         Array.Empty<string>());
 
         /// <summary>RCS1141</summary>
-        public static readonly DiagnosticDescriptor AddParameterToDocumentationComment = new DiagnosticDescriptor(
-            id:                 DiagnosticIdentifiers.AddParameterToDocumentationComment, 
-            title:              "Add parameter to documentation comment.", 
-            messageFormat:      "Add parameter to documentation comment.", 
+        public static readonly DiagnosticDescriptor AddParamElementToDocumentationComment = new DiagnosticDescriptor(
+            id:                 DiagnosticIdentifiers.AddParamElementToDocumentationComment, 
+            title:              "Add 'param' element to documentation comment.", 
+            messageFormat:      "Add 'param' element to documentation comment.", 
             category:           DiagnosticCategories.Maintainability, 
-            defaultSeverity:    DiagnosticSeverity.Info, 
+            defaultSeverity:    DiagnosticSeverity.Hidden, 
             isEnabledByDefault: true, 
             description:        null, 
-            helpLinkUri:        $"{HelpLinkUriRoot}{DiagnosticIdentifiers.AddParameterToDocumentationComment}", 
+            helpLinkUri:        $"{HelpLinkUriRoot}{DiagnosticIdentifiers.AddParamElementToDocumentationComment}", 
             customTags:         Array.Empty<string>());
 
         /// <summary>RCS1142</summary>
-        public static readonly DiagnosticDescriptor AddTypeParameterToDocumentationComment = new DiagnosticDescriptor(
-            id:                 DiagnosticIdentifiers.AddTypeParameterToDocumentationComment, 
-            title:              "Add type parameter to documentation comment.", 
-            messageFormat:      "Add type parameter to documentation comment.", 
+        public static readonly DiagnosticDescriptor AddTypeParamElementToDocumentationComment = new DiagnosticDescriptor(
+            id:                 DiagnosticIdentifiers.AddTypeParamElementToDocumentationComment, 
+            title:              "Add 'typeparam' element to documentation comment.", 
+            messageFormat:      "Add 'typeparam' element to documentation comment.", 
             category:           DiagnosticCategories.Maintainability, 
-            defaultSeverity:    DiagnosticSeverity.Info, 
+            defaultSeverity:    DiagnosticSeverity.Hidden, 
             isEnabledByDefault: true, 
             description:        null, 
-            helpLinkUri:        $"{HelpLinkUriRoot}{DiagnosticIdentifiers.AddTypeParameterToDocumentationComment}", 
+            helpLinkUri:        $"{HelpLinkUriRoot}{DiagnosticIdentifiers.AddTypeParamElementToDocumentationComment}", 
             customTags:         Array.Empty<string>());
 
         /// <summary>RCS1143</summary>
@@ -1749,7 +1749,7 @@ namespace Roslynator.CSharp
             title:              "Unconstrained type parameter checked for null.", 
             messageFormat:      "Unconstrained type parameter checked for null.", 
             category:           DiagnosticCategories.Usage, 
-            defaultSeverity:    DiagnosticSeverity.Warning, 
+            defaultSeverity:    DiagnosticSeverity.Hidden, 
             isEnabledByDefault: true, 
             description:        null, 
             helpLinkUri:        $"{HelpLinkUriRoot}{DiagnosticIdentifiers.UnconstrainedTypeParameterCheckedForNull}", 
@@ -1846,7 +1846,7 @@ namespace Roslynator.CSharp
             messageFormat:      "Remove redundant async/await.", 
             category:           DiagnosticCategories.Redundancy, 
             defaultSeverity:    DiagnosticSeverity.Info, 
-            isEnabledByDefault: true, 
+            isEnabledByDefault: false, 
             description:        null, 
             helpLinkUri:        $"{HelpLinkUriRoot}{DiagnosticIdentifiers.RemoveRedundantAsyncAwait}", 
             customTags:         Array.Empty<string>());

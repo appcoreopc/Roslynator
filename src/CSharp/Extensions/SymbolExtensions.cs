@@ -18,6 +18,37 @@ namespace Roslynator
     public static class SymbolExtensions
     {
         #region ISymbol
+        internal static IEnumerable<ISymbol> FindImplementedInterfaceMembers(this ISymbol symbol, bool allInterfaces = false)
+        {
+            if (symbol == null)
+                throw new ArgumentNullException(nameof(symbol));
+
+            return Iterator();
+
+            IEnumerable<ISymbol> Iterator()
+            {
+                INamedTypeSymbol containingType = symbol.ContainingType;
+
+                if (containingType != null)
+                {
+                    ImmutableArray<INamedTypeSymbol> interfaces = containingType.GetInterfaces(allInterfaces);
+
+                    for (int i = 0; i < interfaces.Length; i++)
+                    {
+                        ImmutableArray<ISymbol> members = interfaces[i].GetMembers();
+
+                        for (int j = 0; j < members.Length; j++)
+                        {
+                            if (symbol.Equals(containingType.FindImplementationForInterfaceMember(members[j])))
+                            {
+                                yield return members[j];
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         internal static ISymbol FindFirstImplementedInterfaceMember(this ISymbol symbol, bool allInterfaces = false)
         {
             if (symbol == null)
@@ -165,46 +196,15 @@ namespace Roslynator
                 default(TSymbol));
         }
 
-        internal static bool IsAnyInterfaceMemberExplicitlyImplemented(this INamedTypeSymbol symbol, ISymbol interfaceSymbol)
+        /// <summary>
+        /// Returns true if the symbol is the specified kind.
+        /// </summary>
+        /// <param name="symbol"></param>
+        /// <param name="kind"></param>
+        /// <returns></returns>
+        public static bool IsKind(this ISymbol symbol, SymbolKind kind)
         {
-            foreach (ISymbol member in symbol.GetMembers())
-            {
-                switch (member.Kind)
-                {
-                    case SymbolKind.Event:
-                        {
-                            foreach (IEventSymbol eventSymbol in ((IEventSymbol)member).ExplicitInterfaceImplementations)
-                            {
-                                if (eventSymbol.ContainingType?.Equals(interfaceSymbol) == true)
-                                    return true;
-                            }
-
-                            break;
-                        }
-                    case SymbolKind.Method:
-                        {
-                            foreach (IMethodSymbol methodSymbol in ((IMethodSymbol)member).ExplicitInterfaceImplementations)
-                            {
-                                if (methodSymbol.ContainingType?.Equals(interfaceSymbol) == true)
-                                    return true;
-                            }
-
-                            break;
-                        }
-                    case SymbolKind.Property:
-                        {
-                            foreach (IPropertySymbol propertySymbol in ((IPropertySymbol)member).ExplicitInterfaceImplementations)
-                            {
-                                if (propertySymbol.ContainingType?.Equals(interfaceSymbol) == true)
-                                    return true;
-                            }
-
-                            break;
-                        }
-                }
-            }
-
-            return false;
+            return symbol?.Kind == kind;
         }
 
         /// <summary>
@@ -513,6 +513,20 @@ namespace Roslynator
                 {
                     return false;
                 }
+
+                symbol = symbol.ContainingType;
+
+            } while (symbol != null);
+
+            return true;
+        }
+
+        internal static bool IsPubliclyOrInternallyVisible(this ISymbol symbol)
+        {
+            do
+            {
+                if (symbol.DeclaredAccessibility == Accessibility.Private)
+                    return false;
 
                 symbol = symbol.ContainingType;
 
@@ -1401,29 +1415,38 @@ namespace Roslynator
                             return true;
                         }
 
-                        return !ContainsAnonymousType(namedTypeSymbol.TypeArguments);
+                        return SupportsExplicitDeclaration2(namedTypeSymbol.TypeArguments);
                     }
             }
 
             return false;
 
-            bool ContainsAnonymousType(ImmutableArray<ITypeSymbol> typeSymbols)
+            bool SupportsExplicitDeclaration2(ImmutableArray<ITypeSymbol> typeSymbols)
             {
                 foreach (ITypeSymbol symbol in typeSymbols)
                 {
                     if (symbol.IsAnonymousType)
-                        return true;
+                        return false;
 
-                    if (symbol.Kind == SymbolKind.NamedType)
+                    switch (symbol.Kind)
                     {
-                        var namedTypeSymbol = (INamedTypeSymbol)symbol;
+                        case SymbolKind.NamedType:
+                            {
+                                var namedTypeSymbol = (INamedTypeSymbol)symbol;
 
-                        if (ContainsAnonymousType(namedTypeSymbol.TypeArguments))
-                            return true;
+                                if (!SupportsExplicitDeclaration2(namedTypeSymbol.TypeArguments))
+                                    return false;
+
+                                break;
+                            }
+                        case SymbolKind.ErrorType:
+                            {
+                                return false;
+                            }
                     }
                 }
 
-                return false;
+                return true;
             }
         }
 

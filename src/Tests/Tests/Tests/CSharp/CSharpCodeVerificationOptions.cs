@@ -12,13 +12,9 @@ namespace Roslynator.Tests.CSharp
             bool allowNewCompilerDiagnostics = false,
             bool enableDiagnosticsDisabledByDefault = true,
             DiagnosticSeverity maxAllowedCompilerDiagnosticSeverity = DiagnosticSeverity.Info,
-            IEnumerable<string> allowedCompilerDiagnosticIds = null,
-            bool allowUnsafe = true,
-            OutputKind outputKind = OutputKind.DynamicallyLinkedLibrary)
+            IEnumerable<string> allowedCompilerDiagnosticIds = null)
             : base(allowNewCompilerDiagnostics, enableDiagnosticsDisabledByDefault, maxAllowedCompilerDiagnosticSeverity, allowedCompilerDiagnosticIds)
         {
-            AllowUnsafe = allowUnsafe;
-            OutputKind = outputKind;
         }
 
         public static CSharpCodeVerificationOptions Default { get; } = new CSharpCodeVerificationOptions(allowedCompilerDiagnosticIds: ImmutableArray.Create(
@@ -34,13 +30,9 @@ namespace Roslynator.Tests.CSharp
             "CS8321" // The local function is declared but never used
         ));
 
-        public bool AllowUnsafe { get; }
-
-        public OutputKind OutputKind { get; }
-
         public override CodeVerificationOptions AddAllowedCompilerDiagnosticId(string diagnosticId)
         {
-            return  WithAllowedCompilerDiagnosticIds(AllowedCompilerDiagnosticIds.Add(diagnosticId));
+            return WithAllowedCompilerDiagnosticIds(AllowedCompilerDiagnosticIds.Add(diagnosticId));
         }
 
         public override CodeVerificationOptions AddAllowedCompilerDiagnosticIds(IEnumerable<string> diagnosticIds)
@@ -54,9 +46,7 @@ namespace Roslynator.Tests.CSharp
                 allowNewCompilerDiagnostics: AllowNewCompilerDiagnostics,
                 enableDiagnosticsDisabledByDefault: EnableDiagnosticsDisabledByDefault,
                 maxAllowedCompilerDiagnosticSeverity: MaxAllowedCompilerDiagnosticSeverity,
-                allowedCompilerDiagnosticIds: allowedCompilerDiagnosticIds,
-                allowUnsafe: AllowUnsafe,
-                outputKind: OutputKind);
+                allowedCompilerDiagnosticIds: allowedCompilerDiagnosticIds);
         }
     }
 }
